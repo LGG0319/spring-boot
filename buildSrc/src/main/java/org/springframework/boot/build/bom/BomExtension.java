@@ -61,6 +61,7 @@ import org.springframework.boot.build.DeployedPlugin;
 import org.springframework.boot.build.bom.Library.Exclusion;
 import org.springframework.boot.build.bom.Library.Group;
 import org.springframework.boot.build.bom.Library.LibraryVersion;
+import org.springframework.boot.build.bom.Library.Link;
 import org.springframework.boot.build.bom.Library.Module;
 import org.springframework.boot.build.bom.Library.ProhibitedVersion;
 import org.springframework.boot.build.bom.Library.VersionAlignment;
@@ -135,7 +136,11 @@ public class BomExtension {
 			.all((task) -> {
 				Sync syncBom = this.project.getTasks().create("syncBom", Sync.class);
 				syncBom.dependsOn(task);
-				File generatedBomDir = new File(this.project.getBuildDir(), "generated/bom");
+				File generatedBomDir = this.project.getLayout()
+					.getBuildDirectory()
+					.dir("generated/bom")
+					.get()
+					.getAsFile();
 				syncBom.setDestinationDir(generatedBomDir);
 				syncBom.from(((GenerateMavenPom) task).getDestination(), (pom) -> pom.rename((name) -> "pom.xml"));
 				try {
@@ -144,7 +149,12 @@ public class BomExtension {
 								getClass().getClassLoader().getResourceAsStream("effective-bom-settings.xml"),
 								StandardCharsets.UTF_8))
 						.replace("localRepositoryPath",
-								new File(this.project.getBuildDir(), "local-m2-repository").getAbsolutePath());
+								this.project.getLayout()
+									.getBuildDirectory()
+									.dir("local-m2-repository")
+									.get()
+									.getAsFile()
+									.getAbsolutePath());
 					syncBom.from(this.project.getResources().getText().fromString(settingsXmlContent),
 							(settingsXml) -> settingsXml.rename((name) -> "settings.xml"));
 				}
@@ -154,8 +164,11 @@ public class BomExtension {
 				MavenExec generateEffectiveBom = this.project.getTasks()
 					.create("generateEffectiveBom", MavenExec.class);
 				generateEffectiveBom.getProjectDir().set(generatedBomDir);
-				File effectiveBom = new File(this.project.getBuildDir(),
-						"generated/effective-bom/" + this.project.getName() + "-effective-bom.xml");
+				File effectiveBom = this.project.getLayout()
+					.getBuildDirectory()
+					.file("generated/effective-bom/" + this.project.getName() + "-effective-bom.xml")
+					.get()
+					.getAsFile();
 				generateEffectiveBom.args("--settings", "settings.xml", "help:effective-pom",
 						"-Doutput=" + effectiveBom);
 				generateEffectiveBom.dependsOn(syncBom);
@@ -243,7 +256,7 @@ public class BomExtension {
 
 		private String linkRootName;
 
-		private final Map<String, Function<LibraryVersion, String>> links = new HashMap<>();
+		private final Map<String, Link> links = new HashMap<>();
 
 		@Inject
 		public LibraryHandler(Project project, String version) {
@@ -445,7 +458,7 @@ public class BomExtension {
 
 	public static class LinksHandler {
 
-		private final Map<String, Function<LibraryVersion, String>> links = new HashMap<>();
+		private final Map<String, Link> links = new HashMap<>();
 
 		public void site(String linkTemplate) {
 			site(asFactory(linkTemplate));
@@ -475,8 +488,16 @@ public class BomExtension {
 			javadoc(asFactory(linkTemplate));
 		}
 
+		public void javadoc(String linkTemplate, String... packages) {
+			javadoc(asFactory(linkTemplate), packages);
+		}
+
 		public void javadoc(Function<LibraryVersion, String> linkFactory) {
 			add("javadoc", linkFactory);
+		}
+
+		public void javadoc(Function<LibraryVersion, String> linkFactory, String... packages) {
+			add("javadoc", linkFactory, packages);
 		}
 
 		public void releaseNotes(String linkTemplate) {
@@ -492,7 +513,11 @@ public class BomExtension {
 		}
 
 		public void add(String name, Function<LibraryVersion, String> linkFactory) {
-			this.links.put(name, linkFactory);
+			add(name, linkFactory, null);
+		}
+
+		public void add(String name, Function<LibraryVersion, String> linkFactory, String[] packages) {
+			this.links.put(name, new Link(linkFactory, (packages != null) ? List.of(packages) : null));
 		}
 
 		private Function<LibraryVersion, String> asFactory(String linkTemplate) {

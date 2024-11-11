@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -212,7 +213,7 @@ public class ConfigTreePropertySource extends EnumerablePropertySource<Path> imp
 						String name = getName(sourceDirectory.relativize(path));
 						if (StringUtils.hasText(name)) {
 							if (options.contains(Option.USE_LOWERCASE_NAMES)) {
-								name = name.toLowerCase();
+								name = name.toLowerCase(Locale.getDefault());
 							}
 							propertyFiles.put(name, new PropertyFile(path, options));
 						}

@@ -34,7 +34,7 @@ dependencies {
 	intTestImplementation("org.junit.jupiter:junit-jupiter")
 	intTestImplementation("org.springframework:spring-core")
 
-	loader(project(":spring-boot-project:spring-boot-tools:spring-boot-loader-classic"))
+	loader(project(":spring-boot-project:spring-boot-tools:spring-boot-loader"))
 
 	testImplementation(project(":spring-boot-project:spring-boot"))
 	testImplementation(project(":spring-boot-project:spring-boot-tools:spring-boot-test-support"))
@@ -106,12 +106,12 @@ task tar(type: Tar) {
 
 task homebrewFormula(type: org.springframework.boot.build.cli.HomebrewFormula) {
 	dependsOn tar
-	outputDir = file("${buildDir}/homebrew")
+	outputDir = layout.buildDirectory.dir("homebrew")
 	template = file("src/main/homebrew/spring-boot.rb")
 	archive = tar.archiveFile
 }
 
-def homebrewFormulaArtifact = artifacts.add("archives", file("${buildDir}/homebrew/spring-boot.rb")) {
+def homebrewFormulaArtifact = artifacts.add("archives", file(layout.buildDirectory.file("homebrew/spring-boot.rb"))) {
 	type "rb"
 	classifier "homebrew"
 	builtBy "homebrewFormula"

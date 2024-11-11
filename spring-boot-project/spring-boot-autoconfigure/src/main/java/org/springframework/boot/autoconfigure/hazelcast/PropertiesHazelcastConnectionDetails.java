@@ -19,6 +19,7 @@ package org.springframework.boot.autoconfigure.hazelcast;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URL;
+import java.util.Locale;
 
 import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.client.config.XmlClientConfigBuilder;
@@ -54,15 +55,17 @@ class PropertiesHazelcastConnectionDetails implements HazelcastConnectionDetails
 	private ClientConfig loadClientConfig(Resource configLocation) {
 		try {
 			URL configUrl = configLocation.getURL();
-			String configFileName = configUrl.getPath();
-			if (configFileName.endsWith(".yaml") || configFileName.endsWith(".yml")) {
-				return new YamlClientConfigBuilder(configUrl).build();
-			}
-			return new XmlClientConfigBuilder(configUrl).build();
+			String configFileName = configUrl.getPath().toLowerCase(Locale.ROOT);
+			return (!isYaml(configFileName)) ? new XmlClientConfigBuilder(configUrl).build()
+					: new YamlClientConfigBuilder(configUrl).build();
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException("Failed to load Hazelcast config", ex);
 		}
+	}
+
+	private boolean isYaml(String configFileName) {
+		return configFileName.endsWith(".yaml") || configFileName.endsWith(".yml");
 	}
 
 }

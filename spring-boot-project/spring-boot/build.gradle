@@ -9,7 +9,7 @@ plugins {
 
 description = "Spring Boot"
 
-def tomcatConfigProperties = "$buildDir/tomcat-config-properties"
+def tomcatConfigProperties = layout.buildDirectory.dir("tomcat-config-properties")
 
 configurations {
 	tomcatDistribution
@@ -22,6 +22,7 @@ dependencies {
 	api("org.springframework:spring-context")
 
 	optional("ch.qos.logback:logback-classic")
+	optional("com.clickhouse:clickhouse-jdbc")
 	optional("com.fasterxml.jackson.core:jackson-databind")
 	optional("com.h2database:h2")
 	optional("com.google.code.gson:gson")
@@ -29,7 +30,6 @@ dependencies {
 	optional("com.oracle.database.jdbc:ucp11")
 	optional("com.oracle.database.jdbc:ojdbc11")
 	optional("com.samskivert:jmustache")
-	optional("com.squareup.okhttp3:okhttp")
 	optional("com.zaxxer:HikariCP")
 	optional("io.netty:netty-tcnative-boringssl-static")
 	optional("io.projectreactor:reactor-tools")

@@ -20,6 +20,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -452,7 +454,20 @@ public abstract class AbstractRunMojo extends AbstractDependencyFilterMojo {
 	record ArgFile(Path path) {
 
 		private void write(CharSequence content) throws IOException {
-			Files.writeString(this.path, "\"" + escape(content) + "\"");
+			Files.writeString(this.path, "\"" + escape(content) + "\"", getCharset());
+		}
+
+		private Charset getCharset() {
+			String nativeEncoding = System.getProperty("native.encoding");
+			if (nativeEncoding == null) {
+				return Charset.defaultCharset();
+			}
+			try {
+				return Charset.forName(nativeEncoding);
+			}
+			catch (UnsupportedCharsetException ex) {
+				return Charset.defaultCharset();
+			}
 		}
 
 		private String escape(CharSequence content) {
@@ -460,7 +475,9 @@ public abstract class AbstractRunMojo extends AbstractDependencyFilterMojo {
 		}
 
 		static ArgFile create(CharSequence content) throws IOException {
-			ArgFile argFile = new ArgFile(Files.createTempFile("spring-boot-", ".argfile"));
+			Path tempFile = Files.createTempFile("spring-boot-", ".argfile");
+			tempFile.toFile().deleteOnExit();
+			ArgFile argFile = new ArgFile(tempFile);
 			argFile.write(content);
 			return argFile;
 		}

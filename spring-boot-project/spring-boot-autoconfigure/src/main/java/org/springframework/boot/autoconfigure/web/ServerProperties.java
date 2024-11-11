@@ -102,7 +102,11 @@ public class ServerProperties {
 	private String serverHeader;
 
 	/**
-	 * Maximum size of the HTTP request header.
+	 * Maximum size of the HTTP request header. Refer to the documentation for your chosen
+	 * embedded server for details of exactly how this limit is applied. For example,
+	 * Netty applies the limit separately to each individual header in the request whereas
+	 * Tomcat applies the limit to the combined size of the request line and all of the
+	 * header names and values in the request.
 	 */
 	private DataSize maxHttpRequestHeaderSize = DataSize.ofKilobytes(8);
 
@@ -465,21 +469,21 @@ public class ServerProperties {
 		private int maxKeepAliveRequests = 100;
 
 		/**
-		 * Comma-separated list of additional patterns that match jars to ignore for TLD
-		 * scanning. The special '?' and '*' characters can be used in the pattern to
-		 * match one and only one character and zero or more characters respectively.
+		 * List of additional patterns that match jars to ignore for TLD scanning. The
+		 * special '?' and '*' characters can be used in the pattern to match one and only
+		 * one character and zero or more characters respectively.
 		 */
 		private List<String> additionalTldSkipPatterns = new ArrayList<>();
 
 		/**
-		 * Comma-separated list of additional unencoded characters that should be allowed
-		 * in URI paths. Only "< > [ \ ] ^ ` { | }" are allowed.
+		 * List of additional unencoded characters that should be allowed in URI paths.
+		 * Only "< > [ \ ] ^ ` { | }" are allowed.
 		 */
 		private List<Character> relaxedPathChars = new ArrayList<>();
 
 		/**
-		 * Comma-separated list of additional unencoded characters that should be allowed
-		 * in URI query strings. Only "< > [ \ ] ^ ` { | }" are allowed.
+		 * List of additional unencoded characters that should be allowed in URI query
+		 * strings. Only "< > [ \ ] ^ ` { | }" are allowed.
 		 */
 		private List<Character> relaxedQueryChars = new ArrayList<>();
 
@@ -488,13 +492,6 @@ public class ServerProperties {
 		 * request URI line to be presented.
 		 */
 		private Duration connectionTimeout;
-
-		/**
-		 * Whether to reject requests with illegal header names or values.
-		 * @deprecated since 2.7.12 for removal in 3.3.0
-		 */
-		@Deprecated(since = "2.7.12", forRemoval = true) // Remove in 3.3
-		private boolean rejectIllegalHeader = true;
 
 		/**
 		 * Static resource configuration.
@@ -650,17 +647,6 @@ public class ServerProperties {
 
 		public void setConnectionTimeout(Duration connectionTimeout) {
 			this.connectionTimeout = connectionTimeout;
-		}
-
-		@Deprecated(since = "3.2.0", forRemoval = true)
-		@DeprecatedConfigurationProperty(reason = "The setting has been deprecated in Tomcat", since = "3.2.0")
-		public boolean isRejectIllegalHeader() {
-			return this.rejectIllegalHeader;
-		}
-
-		@Deprecated(since = "3.2.0", forRemoval = true)
-		public void setRejectIllegalHeader(boolean rejectIllegalHeader) {
-			this.rejectIllegalHeader = rejectIllegalHeader;
 		}
 
 		public Resource getResource() {
@@ -937,7 +923,8 @@ public class ServerProperties {
 			private int minSpare = 10;
 
 			/**
-			 * Maximum capacity of the thread pool's backing queue.
+			 * Maximum capacity of the thread pool's backing queue. This setting only has
+			 * an effect if the value is greater than 0.
 			 */
 			private int maxQueueCapacity = 2147483647;
 
@@ -1149,6 +1136,11 @@ public class ServerProperties {
 		private DataSize maxHttpFormPostSize = DataSize.ofBytes(200000);
 
 		/**
+		 * Maximum number of form keys.
+		 */
+		private int maxFormKeys = 1000;
+
+		/**
 		 * Time that the connection can be idle before it is closed.
 		 */
 		private Duration connectionIdleTimeout;
@@ -1178,6 +1170,14 @@ public class ServerProperties {
 
 		public void setMaxHttpFormPostSize(DataSize maxHttpFormPostSize) {
 			this.maxHttpFormPostSize = maxHttpFormPostSize;
+		}
+
+		public int getMaxFormKeys() {
+			return this.maxFormKeys;
+		}
+
+		public void setMaxFormKeys(int maxFormKeys) {
+			this.maxFormKeys = maxFormKeys;
 		}
 
 		public Duration getConnectionIdleTimeout() {

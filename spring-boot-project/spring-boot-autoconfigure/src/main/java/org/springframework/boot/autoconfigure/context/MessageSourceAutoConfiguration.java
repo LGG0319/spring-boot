@@ -16,7 +16,11 @@
 
 package org.springframework.boot.autoconfigure.context;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
+import java.util.List;
+import java.util.Properties;
 
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
@@ -38,10 +42,13 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ResourceBundleMessageSource;
+import org.springframework.core.CollectionFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.core.type.AnnotatedTypeMetadata;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ConcurrentReferenceHashMap;
 import org.springframework.util.StringUtils;
 
@@ -52,6 +59,7 @@ import org.springframework.util.StringUtils;
  * @author Phillip Webb
  * @author Eddú Meléndez
  * @author Marc Becker
+ * @author Misagh Moayyed
  * @since 1.5.0
  */
 @AutoConfiguration
@@ -67,9 +75,8 @@ public class MessageSourceAutoConfiguration {
 	@Bean
 	public MessageSource messageSource(MessageSourceProperties properties) {
 		ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
-		if (StringUtils.hasText(properties.getBasename())) {
-			messageSource.setBasenames(StringUtils
-				.commaDelimitedListToStringArray(StringUtils.trimAllWhitespace(properties.getBasename())));
+		if (!CollectionUtils.isEmpty(properties.getBasename())) {
+			messageSource.setBasenames(properties.getBasename().toArray(new String[0]));
 		}
 		if (properties.getEncoding() != null) {
 			messageSource.setDefaultEncoding(properties.getEncoding().name());
@@ -81,7 +88,24 @@ public class MessageSourceAutoConfiguration {
 		}
 		messageSource.setAlwaysUseMessageFormat(properties.isAlwaysUseMessageFormat());
 		messageSource.setUseCodeAsDefaultMessage(properties.isUseCodeAsDefaultMessage());
+		messageSource.setCommonMessages(loadCommonMessages(properties.getCommonMessages()));
 		return messageSource;
+	}
+
+	private Properties loadCommonMessages(List<Resource> resources) {
+		if (CollectionUtils.isEmpty(resources)) {
+			return null;
+		}
+		Properties properties = CollectionFactory.createSortedProperties(false);
+		for (Resource resource : resources) {
+			try {
+				PropertiesLoaderUtils.fillProperties(properties, resource);
+			}
+			catch (IOException ex) {
+				throw new UncheckedIOException("Failed to load common messages from '%s'".formatted(resource), ex);
+			}
+		}
+		return properties;
 	}
 
 	protected static class ResourceBundleCondition extends SpringBootCondition {

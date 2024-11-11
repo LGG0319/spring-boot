@@ -36,6 +36,7 @@ import java.util.function.Predicate;
 
 import org.springframework.aop.scope.ScopedProxyUtils;
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.HierarchicalBeanFactory;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -496,18 +497,25 @@ class OnBeanCondition extends FilteringSpringBootCondition implements Configurat
 		}
 		for (String beanName : beanNames) {
 			if (beanFactory instanceof ConfigurableListableBeanFactory clbf) {
-				try {
-					result.put(beanName, clbf.getBeanDefinition(beanName));
-				}
-				catch (NoSuchBeanDefinitionException ex) {
-					result.put(beanName, null);
-				}
+				result.put(beanName, getBeanDefinition(beanName, clbf));
 			}
 			else {
 				result.put(beanName, null);
 			}
 		}
 		return result;
+	}
+
+	private static BeanDefinition getBeanDefinition(String beanName, ConfigurableListableBeanFactory beanFactory) {
+		try {
+			return beanFactory.getBeanDefinition(beanName);
+		}
+		catch (NoSuchBeanDefinitionException ex) {
+			if (BeanFactoryUtils.isFactoryDereference(beanName)) {
+				return getBeanDefinition(BeanFactoryUtils.transformedBeanName(beanName), beanFactory);
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -546,7 +554,7 @@ class OnBeanCondition extends FilteringSpringBootCondition implements Configurat
 			this.strategy = annotation.getValue("search", SearchStrategy.class).orElse(null);
 			Set<String> types = extractTypes(attributes);
 			BeanTypeDeductionException deductionException = null;
-			if (types.isEmpty() && this.names.isEmpty()) {
+			if (types.isEmpty() && this.names.isEmpty() && this.annotations.isEmpty()) {
 				try {
 					types = deducedBeanType(context, metadata);
 				}
@@ -602,7 +610,7 @@ class OnBeanCondition extends FilteringSpringBootCondition implements Configurat
 		}
 
 		protected void validate(BeanTypeDeductionException ex) {
-			if (!hasAtLeastOneElement(this.types, this.names, this.annotations)) {
+			if (!hasAtLeastOneElement(getTypes(), getNames(), getAnnotations())) {
 				String message = getAnnotationName() + " did not specify a bean using type, name or annotation";
 				if (ex == null) {
 					throw new IllegalStateException(message);
