@@ -22,7 +22,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.boot.testcontainers.lifecycle.TestContainersParallelStartupIntegrationTests.ContainerConfig;
+import org.springframework.boot.testcontainers.lifecycle.TestcontainersParallelStartupIntegrationTests.ContainerConfig;
 import org.springframework.boot.testsupport.container.DisabledIfDockerUnavailable;
 import org.springframework.boot.testsupport.container.TestImage;
 import org.springframework.context.annotation.Bean;
@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestPropertySource(properties = "spring.testcontainers.beans.startup=parallel")
 @DisabledIfDockerUnavailable
 @ExtendWith(OutputCaptureExtension.class)
-class TestContainersParallelStartupIntegrationTests {
+class TestcontainersParallelStartupIntegrationTests {
 
 	@Test
 	void startsInParallel(CapturedOutput out) {

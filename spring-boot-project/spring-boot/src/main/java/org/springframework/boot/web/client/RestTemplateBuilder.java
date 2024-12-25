@@ -29,10 +29,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings.Redirects;
 import org.springframework.boot.ssl.SslBundle;
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpRequestFactory;
@@ -64,6 +66,7 @@ import org.springframework.web.util.UriTemplateHandler;
  * @author Kevin Strijbos
  * @author Ilya Lukyanovich
  * @author Scott Frederick
+ * @author Yanming Zhou
  * @since 1.4.0
  */
 public class RestTemplateBuilder {
@@ -435,7 +438,7 @@ public class RestTemplateBuilder {
 
 	/**
 	 * Sets the {@link ClientHttpRequestFactorySettings}. This will replace any previously
-	 * set {@link #connectTimeout(Duration) connectTimeout} ,{@link #readTimeout(Duration)
+	 * set {@link #connectTimeout(Duration) connectTimeout}, {@link #readTimeout(Duration)
 	 * readTimeout} and {@link #sslBundle(SslBundle) sslBundle} values.
 	 * @param requestFactorySettings the request factory settings
 	 * @return a new builder instance
@@ -447,6 +450,22 @@ public class RestTemplateBuilder {
 				this.messageConverters, this.interceptors, this.requestFactoryBuilder, this.uriTemplateHandler,
 				this.errorHandler, this.basicAuthentication, this.defaultHeaders, this.customizers,
 				this.requestCustomizers);
+	}
+
+	/**
+	 * Update the {@link ClientHttpRequestFactorySettings} using the given customizer.
+	 * @param requestFactorySettingsCustomizer a {@link UnaryOperator} to update request
+	 * factory settings
+	 * @return a new builder instance
+	 * @since 3.4.1
+	 */
+	public RestTemplateBuilder requestFactorySettings(
+			UnaryOperator<ClientHttpRequestFactorySettings> requestFactorySettingsCustomizer) {
+		Assert.notNull(requestFactorySettingsCustomizer, "ClientHttpRequestFactorySettingsCustomizer must not be null");
+		return new RestTemplateBuilder(requestFactorySettingsCustomizer.apply(this.requestFactorySettings),
+				this.detectRequestFactory, this.rootUri, this.messageConverters, this.interceptors,
+				this.requestFactoryBuilder, this.uriTemplateHandler, this.errorHandler, this.basicAuthentication,
+				this.defaultHeaders, this.customizers, this.requestCustomizers);
 	}
 
 	/**
@@ -499,6 +518,19 @@ public class RestTemplateBuilder {
 				this.detectRequestFactory, this.rootUri, this.messageConverters, this.interceptors,
 				this.requestFactoryBuilder, this.uriTemplateHandler, this.errorHandler, this.basicAuthentication,
 				this.defaultHeaders, this.customizers, this.requestCustomizers);
+	}
+
+	/**
+	 * Sets the redirect strategy on the underlying {@link ClientHttpRequestFactory}.
+	 * @param redirects the redirect strategy
+	 * @return a new builder instance.
+	 * @since 3.4.1
+	 */
+	public RestTemplateBuilder redirects(Redirects redirects) {
+		return new RestTemplateBuilder(this.requestFactorySettings.withRedirects(redirects), this.detectRequestFactory,
+				this.rootUri, this.messageConverters, this.interceptors, this.requestFactoryBuilder,
+				this.uriTemplateHandler, this.errorHandler, this.basicAuthentication, this.defaultHeaders,
+				this.customizers, this.requestCustomizers);
 	}
 
 	/**
