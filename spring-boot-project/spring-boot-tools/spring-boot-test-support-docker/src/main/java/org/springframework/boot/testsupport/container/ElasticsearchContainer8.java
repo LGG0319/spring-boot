@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,21 @@
  * limitations under the License.
  */
 
-package smoketest.pulsar;
+package org.springframework.boot.testsupport.container;
 
-record SampleMessage(Integer id, String content) {
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
+
+/**
+ * A container suitable for testing Elasticsearch 8.
+ *
+ * @author Dmytro Nosan
+ */
+public class ElasticsearchContainer8 extends ElasticsearchContainer {
+
+	public ElasticsearchContainer8() {
+		super(TestImage.ELASTICSEARCH_8.toString());
+		addEnv("ES_JAVA_OPTS", "-Xms32m -Xmx512m");
+		addEnv("xpack.security.enabled", "false");
+	}
+
 }

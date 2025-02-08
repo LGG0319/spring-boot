@@ -36,11 +36,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SampleStructuredLoggingApplicationTests {
 
 	@AfterEach
-	void reset() {
+	void reset(CapturedOutput output) {
 		LoggingSystem.get(getClass().getClassLoader()).cleanUp();
 		for (LoggingSystemProperty property : LoggingSystemProperty.values()) {
 			System.getProperties().remove(property.getEnvironmentVariableName());
 		}
+		assertThat(output).doesNotContain("-INFO in ch.qos.logback.classic.LoggerContext");
 	}
 
 	@Test
@@ -68,6 +69,13 @@ class SampleStructuredLoggingApplicationTests {
 	@Test
 	void shouldCaptureCustomizerError(CapturedOutput output) {
 		SampleStructuredLoggingApplication.main(new String[] { "--spring.profiles.active=on-error" });
+		assertThat(output).contains("The name 'test' has already been written");
+	}
+
+	@Test
+	void shouldCaptureCustomizerErrorWhenUsingCustomLogbackFile(CapturedOutput output) {
+		SampleStructuredLoggingApplication
+			.main(new String[] { "--spring.profiles.active=on-error-custom-logback-file" });
 		assertThat(output).contains("The name 'test' has already been written");
 	}
 

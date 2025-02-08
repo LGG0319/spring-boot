@@ -40,10 +40,11 @@ import ch.qos.logback.core.encoder.LayoutWrappingEncoder;
 import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.rolling.RollingFileAppender;
 import ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy;
+import ch.qos.logback.core.status.ErrorStatus;
+import ch.qos.logback.core.status.InfoStatus;
 import ch.qos.logback.core.status.OnConsoleStatusListener;
-import ch.qos.logback.core.status.OnErrorConsoleStatusListener;
-import ch.qos.logback.core.status.Status;
-import ch.qos.logback.core.status.StatusListener;
+import ch.qos.logback.core.status.StatusManager;
+import ch.qos.logback.core.status.WarnStatus;
 import ch.qos.logback.core.util.DynamicClassLoadingException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -649,17 +650,24 @@ class LogbackLoggingSystemTests extends AbstractLoggingSystemTests {
 		System.setProperty("logback.debug", "true");
 		try {
 			this.loggingSystem.beforeInitialize();
+			LoggerContext loggerContext = this.logger.getLoggerContext();
+			StatusManager statusManager = loggerContext.getStatusManager();
+			statusManager.add(new InfoStatus("INFO STATUS MESSAGE", getClass()));
+			statusManager.add(new WarnStatus("WARN STATUS MESSAGE", getClass()));
+			statusManager.add(new ErrorStatus("ERROR STATUS MESSAGE", getClass()));
 			File file = new File(tmpDir(), "logback-test.log");
 			LogFile logFile = getLogFile(file.getPath(), null);
 			initialize(this.initializationContext, null, logFile);
 			assertThat(output).contains("LevelChangePropagator")
 				.contains("SizeAndTimeBasedFileNamingAndTriggeringPolicy")
-				.contains("DebugLogbackConfigurator");
-			LoggerContext loggerContext = this.logger.getLoggerContext();
-			List<StatusListener> statusListeners = loggerContext.getStatusManager().getCopyOfStatusListenerList();
-			assertThat(statusListeners).hasSize(1);
-			StatusListener statusListener = statusListeners.get(0);
-			assertThat(statusListener).isInstanceOf(OnConsoleStatusListener.class);
+				.contains("DebugLogbackConfigurator")
+				.contains("INFO STATUS MESSAGE")
+				.contains("WARN STATUS MESSAGE")
+				.contains("ERROR STATUS MESSAGE");
+			assertThat(loggerContext.getStatusManager().getCopyOfStatusListenerList()).allSatisfy((listener) -> {
+				assertThat(listener).isInstanceOf(SystemStatusListener.class);
+				assertThat(listener).hasFieldOrPropertyWithValue("debug", true);
+			});
 		}
 		finally {
 			System.clearProperty("logback.debug");
@@ -667,29 +675,82 @@ class LogbackLoggingSystemTests extends AbstractLoggingSystemTests {
 	}
 
 	@Test
-	void logbackErrorStatusListenerShouldBeRegistered(CapturedOutput output) {
+	void logbackSystemStatusListenerShouldBeRegisteredWhenCustomLogbackXmlHasStatusListener(CapturedOutput output) {
+		this.loggingSystem.beforeInitialize();
+		initialize(this.initializationContext, "classpath:logback-include-status-listener.xml", null);
+		LoggerContext loggerContext = this.logger.getLoggerContext();
+		assertThat(loggerContext.getStatusManager().getCopyOfStatusListenerList()).hasSize(2)
+			.allSatisfy((listener) -> assertThat(listener).isInstanceOf(OnConsoleStatusListener.class))
+			.anySatisfy((listener) -> assertThat(listener).isInstanceOf(SystemStatusListener.class));
+		this.logger.info("Hello world");
+		assertThat(output).contains("Hello world");
+	}
+
+	@Test
+	void logbackSystemStatusListenerShouldBeRegistered(CapturedOutput output) {
 		this.loggingSystem.beforeInitialize();
 		initialize(this.initializationContext, null, getLogFile(tmpDir() + "/tmp.log", null));
 		LoggerContext loggerContext = this.logger.getLoggerContext();
-		List<StatusListener> statusListeners = loggerContext.getStatusManager().getCopyOfStatusListenerList();
-		assertThat(statusListeners).hasSize(1);
-		StatusListener statusListener = statusListeners.get(0);
-		assertThat(statusListener).isInstanceOf(FilteringStatusListener.class);
-		assertThat(statusListener).hasFieldOrPropertyWithValue("levelThreshold", Status.ERROR);
-		assertThat(statusListener).extracting("delegate").isInstanceOf(OnErrorConsoleStatusListener.class);
-		AppenderBase<ILoggingEvent> appender = new AppenderBase<>() {
-
-			@Override
-			protected void append(ILoggingEvent eventObject) {
-				throw new IllegalStateException("Fail to append");
-			}
-
-		};
-		this.logger.addAppender(appender);
+		assertThat(loggerContext.getStatusManager().getCopyOfStatusListenerList()).allSatisfy((listener) -> {
+			assertThat(listener).isInstanceOf(SystemStatusListener.class);
+			assertThat(listener).hasFieldOrPropertyWithValue("debug", false);
+		});
+		AlwaysFailAppender appender = new AlwaysFailAppender();
 		appender.setContext(loggerContext);
 		appender.start();
+		this.logger.addAppender(appender);
 		this.logger.info("Hello world");
-		assertThat(output).contains("Fail to append").contains("Hello world");
+		assertThat(output).contains("Always Fail Appender").contains("Hello world");
+	}
+
+	@Test
+	void logbackSystemStatusListenerShouldBeRegisteredOnlyOnce() {
+		this.loggingSystem.beforeInitialize();
+		initialize(this.initializationContext, null, getLogFile(tmpDir() + "/tmp.log", null));
+		LoggerContext loggerContext = this.logger.getLoggerContext();
+		SystemStatusListener.addTo(loggerContext);
+		SystemStatusListener.addTo(loggerContext, true);
+		assertThat(loggerContext.getStatusManager().getCopyOfStatusListenerList()).satisfiesOnlyOnce((listener) -> {
+			assertThat(listener).isInstanceOf(SystemStatusListener.class);
+			assertThat(listener).hasFieldOrPropertyWithValue("debug", false);
+		});
+	}
+
+	@Test
+	void logbackSystemStatusListenerShouldBeRegisteredAndFilterStatusByLevelIfDebugDisabled(CapturedOutput output) {
+		this.loggingSystem.beforeInitialize();
+		LoggerContext loggerContext = this.logger.getLoggerContext();
+		StatusManager statusManager = loggerContext.getStatusManager();
+		statusManager.add(new InfoStatus("INFO STATUS MESSAGE", getClass()));
+		statusManager.add(new WarnStatus("WARN STATUS MESSAGE", getClass()));
+		statusManager.add(new ErrorStatus("ERROR STATUS MESSAGE", getClass()));
+		initialize(this.initializationContext, null, getLogFile(tmpDir() + "/tmp.log", null));
+		assertThat(statusManager.getCopyOfStatusListenerList()).allSatisfy((listener) -> {
+			assertThat(listener).isInstanceOf(SystemStatusListener.class);
+			assertThat(listener).hasFieldOrPropertyWithValue("debug", false);
+		});
+		this.logger.info("Hello world");
+		assertThat(output).doesNotContain("INFO STATUS MESSAGE");
+		assertThat(output).contains("WARN STATUS MESSAGE");
+		assertThat(output).contains("ERROR STATUS MESSAGE");
+		assertThat(output).contains("Hello world");
+	}
+
+	@Test
+	void logbackSystemStatusListenerShouldBeRegisteredWhenUsingCustomLogbackXml(CapturedOutput output) {
+		this.loggingSystem.beforeInitialize();
+		initialize(this.initializationContext, "classpath:logback-include-defaults.xml", null);
+		LoggerContext loggerContext = this.logger.getLoggerContext();
+		assertThat(loggerContext.getStatusManager().getCopyOfStatusListenerList()).allSatisfy((listener) -> {
+			assertThat(listener).isInstanceOf(SystemStatusListener.class);
+			assertThat(listener).hasFieldOrPropertyWithValue("debug", false);
+		});
+		AlwaysFailAppender appender = new AlwaysFailAppender();
+		appender.setContext(loggerContext);
+		appender.start();
+		this.logger.addAppender(appender);
+		this.logger.info("Hello world");
+		assertThat(output).contains("Always Fail Appender").contains("Hello world");
 	}
 
 	@Test
@@ -1040,6 +1101,15 @@ class LogbackLoggingSystemTests extends AbstractLoggingSystemTests {
 
 	private static SizeAndTimeBasedRollingPolicy<?> getRollingPolicy() {
 		return (SizeAndTimeBasedRollingPolicy<?>) getFileAppender().getRollingPolicy();
+	}
+
+	private static final class AlwaysFailAppender extends AppenderBase<ILoggingEvent> {
+
+		@Override
+		protected void append(ILoggingEvent eventObject) {
+			throw new RuntimeException("Always Fail Appender");
+		}
+
 	}
 
 }

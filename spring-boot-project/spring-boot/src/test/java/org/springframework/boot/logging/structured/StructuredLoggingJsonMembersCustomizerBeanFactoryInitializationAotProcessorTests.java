@@ -63,7 +63,7 @@ class StructuredLoggingJsonMembersCustomizerBeanFactoryInitializationAotProcesso
 	}
 
 	@Test
-	void shouldNotRegisterStructuredLoggingJsonMembersCustomizerRuntimeHints() {
+	void shouldNotRegisterStructuredLoggingJsonMembersCustomizerRuntimeHintsWhenPropertiesAreNotSet() {
 		MockEnvironment environment = new MockEnvironment();
 		BeanFactoryInitializationAotContribution contribution = getContribution(environment);
 		assertThat(contribution).isNull();
