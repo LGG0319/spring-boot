@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@ import org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy;
 import org.springframework.boot.orm.jpa.hibernate.SpringJtaPlatform;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
+import org.springframework.jdbc.support.SQLExceptionTranslator;
 import org.springframework.jndi.JndiLocatorDelegate;
 import org.springframework.orm.hibernate5.SpringBeanContainer;
 import org.springframework.orm.jpa.vendor.AbstractJpaVendorAdapter;
@@ -95,6 +96,8 @@ class HibernateJpaConfiguration extends JpaBaseConfiguration {
 
 	private final DataSourcePoolMetadataProvider poolMetadataProvider;
 
+	private final ObjectProvider<SQLExceptionTranslator> sqlExceptionTranslator;
+
 	private final List<HibernatePropertiesCustomizer> hibernatePropertiesCustomizers;
 
 	HibernateJpaConfiguration(DataSource dataSource, JpaProperties jpaProperties,
@@ -104,11 +107,13 @@ class HibernateJpaConfiguration extends JpaBaseConfiguration {
 			ObjectProvider<SchemaManagementProvider> providers,
 			ObjectProvider<PhysicalNamingStrategy> physicalNamingStrategy,
 			ObjectProvider<ImplicitNamingStrategy> implicitNamingStrategy,
+			ObjectProvider<SQLExceptionTranslator> sqlExceptionTranslator,
 			ObjectProvider<HibernatePropertiesCustomizer> hibernatePropertiesCustomizers) {
 		super(dataSource, jpaProperties, jtaTransactionManager);
 		this.hibernateProperties = hibernateProperties;
 		this.defaultDdlAutoProvider = new HibernateDefaultDdlAutoProvider(providers);
 		this.poolMetadataProvider = new CompositeDataSourcePoolMetadataProvider(metadataProviders.getIfAvailable());
+		this.sqlExceptionTranslator = sqlExceptionTranslator;
 		this.hibernatePropertiesCustomizers = determineHibernatePropertiesCustomizers(
 				physicalNamingStrategy.getIfAvailable(), implicitNamingStrategy.getIfAvailable(), beanFactory,
 				hibernatePropertiesCustomizers.orderedStream().toList());
@@ -134,7 +139,9 @@ class HibernateJpaConfiguration extends JpaBaseConfiguration {
 
 	@Override
 	protected AbstractJpaVendorAdapter createJpaVendorAdapter() {
-		return new HibernateJpaVendorAdapter();
+		HibernateJpaVendorAdapter adapter = new HibernateJpaVendorAdapter();
+		this.sqlExceptionTranslator.ifUnique(adapter.getJpaDialect()::setJdbcExceptionTranslator);
+		return adapter;
 	}
 
 	@Override

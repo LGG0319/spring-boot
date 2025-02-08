@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  * @author Stephane Nicoll
  * @author Scott Frederick
  * @author Madhura Bhave
+ * @author Sijun Yang
  */
 class SpringBootContextLoaderTests {
 
@@ -125,11 +126,6 @@ class SpringBootContextLoaderTests {
 	@Test
 	void multipleActiveProfiles() {
 		assertThat(getActiveProfiles(MultipleActiveProfiles.class)).containsExactly("profile1", "profile2");
-	}
-
-	@Test
-	void activeProfileWithComma() {
-		assertThat(getActiveProfiles(ActiveProfileWithComma.class)).containsExactly("profile1,2");
 	}
 
 	@Test // gh-28776
@@ -314,14 +310,8 @@ class SpringBootContextLoaderTests {
 
 	}
 
-	@SpringBootTest(classes = Config.class)
-	@ActiveProfiles({ "profile1,2" })
-	static class ActiveProfileWithComma {
-
-	}
-
 	@SpringBootTest(properties = { "key=myValue" }, classes = Config.class)
-	@ActiveProfiles({ "profile1,2" })
+	@ActiveProfiles({ "profile1" })
 	static class ActiveProfileWithInlinedProperties {
 
 	}

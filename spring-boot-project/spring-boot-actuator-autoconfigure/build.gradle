@@ -29,6 +29,7 @@ dependencies {
 	optional("io.lettuce:lettuce-core")
 	optional("io.micrometer:micrometer-observation")
 	optional("io.micrometer:micrometer-jakarta9")
+	optional("io.micrometer:micrometer-java21")
 	optional("io.micrometer:micrometer-tracing")
 	optional("io.micrometer:micrometer-tracing-bridge-brave")
 	optional("io.micrometer:micrometer-tracing-bridge-otel")
@@ -49,7 +50,6 @@ dependencies {
 	optional("io.micrometer:micrometer-registry-new-relic")
 	optional("io.micrometer:micrometer-registry-otlp")
 	optional("io.micrometer:micrometer-registry-prometheus")
-	optional("io.micrometer:micrometer-registry-prometheus-simpleclient")
 	optional("io.micrometer:micrometer-registry-stackdriver") {
 		exclude group: "commons-logging", module: "commons-logging"
 		exclude group: "javax.annotation", module: "javax.annotation-api"
