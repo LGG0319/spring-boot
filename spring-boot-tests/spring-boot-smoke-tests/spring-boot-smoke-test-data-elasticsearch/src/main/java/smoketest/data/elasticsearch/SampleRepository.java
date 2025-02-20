@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,28 +14,15 @@
  * limitations under the License.
  */
 
-package org.springframework.boot.maven;
+package smoketest.data.elasticsearch;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
-import org.junit.jupiter.api.Test;
-
-import org.springframework.boot.maven.AbstractRunMojo.ArgFile;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 
 /**
- * Tests for {@link AbstractRunMojo}.
+ * Sample repository.
  *
  * @author Moritz Halbritter
  */
-class AbstractRunMojoTests {
-
-	@Test
-	void argfileEscapesContent() throws IOException {
-		ArgFile file = ArgFile.create("some \\ content");
-		assertThat(file.path()).content(StandardCharsets.UTF_8).isEqualTo("\"some \\\\ content\"");
-	}
+interface SampleRepository extends ElasticsearchRepository<SampleDocument, String> {
 
 }

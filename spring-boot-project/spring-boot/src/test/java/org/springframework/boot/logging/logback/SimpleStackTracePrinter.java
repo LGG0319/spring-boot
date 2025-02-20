@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,24 @@
  * limitations under the License.
  */
 
-package org.springframework.boot.web.embedded.test;
+package org.springframework.boot.logging.logback;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+import java.io.IOException;
 
-import org.junit.jupiter.api.extension.ExtendWith;
+import com.mchange.v1.lang.ClassUtils;
+
+import org.springframework.boot.logging.StackTracePrinter;
 
 /**
- * JUnit {@link ExtendWith @ExtendWith} annotation to support
- * {@link MockPkcs11SecurityProvider}.
+ * Simple {@link StackTracePrinter} used for testing.
  *
  * @author Phillip Webb
  */
-@ExtendWith(MockPkcs11SecurityProviderExtension.class)
-@Retention(RetentionPolicy.RUNTIME)
-public @interface MockPkcs11Security {
+class SimpleStackTracePrinter implements StackTracePrinter {
+
+	@Override
+	public void printStackTrace(Throwable throwable, Appendable out) throws IOException {
+		out.append("stacktrace:" + ClassUtils.simpleClassName(throwable.getClass()));
+	}
 
 }
