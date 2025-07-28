@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,7 +87,6 @@ public abstract class DocumentConfigurationProperties extends DefaultTask {
 		config.accept("spring.autoconfigure");
 		config.accept("spring.banner");
 		config.accept("spring.beaninfo");
-		config.accept("spring.codec");
 		config.accept("spring.config");
 		config.accept("spring.info");
 		config.accept("spring.jmx");
@@ -191,7 +190,6 @@ public abstract class DocumentConfigurationProperties extends DefaultTask {
 		prefix.accept("spring.groovy");
 		prefix.accept("spring.mustache");
 		prefix.accept("spring.thymeleaf");
-		prefix.accept("spring.groovy.template.configuration", "See GroovyMarkupConfigurer");
 	}
 
 	private void serverPrefixes(Config prefix) {

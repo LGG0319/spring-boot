@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,9 @@ import org.antora.gradle.AntoraPlugin;
 import org.antora.gradle.AntoraTask;
 import org.gradle.StartParameter;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.Directory;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.LogLevel;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.provider.Provider;
@@ -46,7 +48,7 @@ import org.gradle.api.tasks.TaskProvider;
 import org.springframework.boot.build.antora.AntoraAsciidocAttributes;
 import org.springframework.boot.build.antora.GenerateAntoraPlaybook;
 import org.springframework.boot.build.bom.BomExtension;
-import org.springframework.boot.build.constraints.ExtractVersionConstraints;
+import org.springframework.boot.build.bom.ResolvedBom;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -57,7 +59,7 @@ import org.springframework.util.StringUtils;
  */
 public class AntoraConventions {
 
-	private static final String DEPENDENCIES_PATH = ":spring-boot-project:spring-boot-dependencies";
+	private static final String DEPENDENCIES_PATH = ":platform:spring-boot-dependencies";
 
 	private static final List<String> NAV_FILES = List.of("nav.adoc", "local-nav.adoc");
 
@@ -76,7 +78,10 @@ public class AntoraConventions {
 	}
 
 	private void apply(Project project, AntoraPlugin antoraPlugin) {
-		TaskProvider<ExtractVersionConstraints> dependencyVersionsTask = addDependencyVersionsTask(project);
+		Configuration resolvedBom = project.getConfigurations().create("resolveBom");
+		project.getDependencies()
+			.add(resolvedBom.getName(), project.getDependencies()
+				.project(Map.of("path", DEPENDENCIES_PATH, "configuration", "resolvedBom")));
 		project.getPlugins().apply(GenerateAntoraYmlPlugin.class);
 		TaskContainer tasks = project.getTasks();
 		TaskProvider<GenerateAntoraPlaybook> generateAntoraPlaybookTask = tasks.register(
@@ -86,8 +91,8 @@ public class AntoraConventions {
 				(task) -> configureCopyAntoraPackageJsonTask(project, task));
 		TaskProvider<NpmInstallTask> npmInstallTask = tasks.register("antoraNpmInstall", NpmInstallTask.class,
 				(task) -> configureNpmInstallTask(project, task, copyAntoraPackageJsonTask));
-		tasks.withType(GenerateAntoraYmlTask.class, (generateAntoraYmlTask) -> configureGenerateAntoraYmlTask(project,
-				generateAntoraYmlTask, dependencyVersionsTask));
+		tasks.withType(GenerateAntoraYmlTask.class,
+				(generateAntoraYmlTask) -> configureGenerateAntoraYmlTask(project, generateAntoraYmlTask, resolvedBom));
 		tasks.withType(AntoraTask.class,
 				(antoraTask) -> configureAntoraTask(project, antoraTask, npmInstallTask, generateAntoraPlaybookTask));
 		project.getExtensions()
@@ -118,21 +123,15 @@ public class AntoraConventions {
 		npmInstallTask.getNpmCommand().set(List.of("ci", "--silent", "--no-progress"));
 	}
 
-	private TaskProvider<ExtractVersionConstraints> addDependencyVersionsTask(Project project) {
-		return project.getTasks()
-			.register("dependencyVersions", ExtractVersionConstraints.class,
-					(task) -> task.enforcedPlatform(DEPENDENCIES_PATH));
-	}
-
 	private void configureGenerateAntoraYmlTask(Project project, GenerateAntoraYmlTask generateAntoraYmlTask,
-			TaskProvider<ExtractVersionConstraints> dependencyVersionsTask) {
+			Configuration resolvedBom) {
 		generateAntoraYmlTask.getOutputs().doNotCacheIf("getAsciidocAttributes() changes output", (task) -> true);
-		generateAntoraYmlTask.dependsOn(dependencyVersionsTask);
+		generateAntoraYmlTask.dependsOn(resolvedBom);
 		generateAntoraYmlTask.setProperty("componentName", "boot");
 		generateAntoraYmlTask.setProperty("outputFile",
 				project.getLayout().getBuildDirectory().file("generated/docs/antora-yml/antora.yml"));
 		generateAntoraYmlTask.setProperty("yml", getDefaultYml(project));
-		generateAntoraYmlTask.getAsciidocAttributes().putAll(getAsciidocAttributes(project, dependencyVersionsTask));
+		generateAntoraYmlTask.getAsciidocAttributes().putAll(getAsciidocAttributes(project, resolvedBom));
 	}
 
 	private Map<String, ?> getDefaultYml(Project project) {
@@ -151,11 +150,11 @@ public class AntoraConventions {
 		return defaultYml;
 	}
 
-	private Provider<Map<String, String>> getAsciidocAttributes(Project project,
-			TaskProvider<ExtractVersionConstraints> dependencyVersionsTask) {
-		return dependencyVersionsTask.map((task) -> task.getVersionConstraints()).map((constraints) -> {
+	private Provider<Map<String, String>> getAsciidocAttributes(Project project, FileCollection resolvedBoms) {
+		return project.provider(() -> {
 			BomExtension bom = (BomExtension) project.project(DEPENDENCIES_PATH).getExtensions().getByName("bom");
-			return new AntoraAsciidocAttributes(project, bom, constraints).get();
+			ResolvedBom resolvedBom = ResolvedBom.readFrom(resolvedBoms.getSingleFile());
+			return new AntoraAsciidocAttributes(project, bom, resolvedBom).get();
 		});
 	}
 

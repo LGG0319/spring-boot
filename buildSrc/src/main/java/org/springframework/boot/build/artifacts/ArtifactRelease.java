@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import org.gradle.api.Project;
  */
 public final class ArtifactRelease {
 
-	private static final String SPRING_REPO = "https://repo.spring.io/%s";
+	private static final String SPRING_SNAPSHOT_REPO = "https://repo.spring.io/snapshot";
 
 	private static final String MAVEN_REPO = "https://repo.maven.apache.org/maven2";
 
@@ -43,7 +43,7 @@ public final class ArtifactRelease {
 	}
 
 	public String getDownloadRepo() {
-		return (this.isRelease()) ? MAVEN_REPO : String.format(SPRING_REPO, this.getType());
+		return (this.type == Type.SNAPSHOT) ? SPRING_SNAPSHOT_REPO : MAVEN_REPO;
 	}
 
 	public boolean isRelease() {

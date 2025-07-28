@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import io.spring.javaformat.gradle.tasks.CheckFormat;
 import io.spring.javaformat.gradle.tasks.Format;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.Dependency;
@@ -54,6 +55,8 @@ import org.gradle.external.javadoc.CoreJavadocOptions;
 import org.springframework.boot.build.architecture.ArchitecturePlugin;
 import org.springframework.boot.build.classpath.CheckClasspathForProhibitedDependencies;
 import org.springframework.boot.build.optional.OptionalDependenciesPlugin;
+import org.springframework.boot.build.springframework.CheckAotFactories;
+import org.springframework.boot.build.springframework.CheckSpringFactories;
 import org.springframework.boot.build.testing.TestFailuresPlugin;
 import org.springframework.boot.build.toolchain.ToolchainPlugin;
 import org.springframework.util.StringUtils;
@@ -70,7 +73,7 @@ import org.springframework.util.StringUtils;
  * <li>{@link Test} tasks are configured:
  * <ul>
  * <li>to use JUnit Platform
- * <li>with a max heap of 1024M
+ * <li>with a max heap of 1536M
  * <li>to run after any Checkstyle and format checking tasks
  * <li>to enable retries with a maximum of three attempts when running on CI
  * <li>to use predictive test selection when the value of the
@@ -98,6 +101,19 @@ import org.springframework.util.StringUtils;
  * <li>{@code Implementation-Version}
  * </ul>
  * <li>{@code spring-boot-parent} is used for dependency management</li>
+ * <li>Additional checks are configured:
+ * <ul>
+ * <li>For all source sets:
+ * <ul>
+ * <li>Prohibited dependencies on the compile classpath
+ * <li>Prohibited dependencies on the runtime classpath
+ * </ul>
+ * <li>For the {@code main} source set:
+ * <ul>
+ * <li>{@code META-INF/spring/aot.factories}
+ * <li>{@code META-INF/spring.factories}
+ * </ul>
+ * </ul>
  * </ul>
  *
  * <p/>
@@ -123,6 +139,7 @@ class JavaConventions {
 			configureDependencyManagement(project);
 			configureToolchain(project);
 			configureProhibitedDependencyChecks(project);
+			configureFactoriesFilesChecks(project);
 		});
 	}
 
@@ -169,7 +186,7 @@ class JavaConventions {
 	private void configureTestConventions(Project project) {
 		project.getTasks().withType(Test.class, (test) -> {
 			test.useJUnitPlatform();
-			test.setMaxHeapSize("1024M");
+			test.setMaxHeapSize("1536M");
 			project.getTasks().withType(Checkstyle.class, test::mustRunAfter);
 			project.getTasks().withType(CheckFormat.class, test::mustRunAfter);
 			configureTestRetries(test);
@@ -218,26 +235,18 @@ class JavaConventions {
 		if (!project.hasProperty("toolchainVersion")) {
 			JavaPluginExtension javaPluginExtension = project.getExtensions().getByType(JavaPluginExtension.class);
 			javaPluginExtension.setSourceCompatibility(JavaVersion.toVersion(SOURCE_AND_TARGET_COMPATIBILITY));
+			javaPluginExtension.setTargetCompatibility(JavaVersion.toVersion(SOURCE_AND_TARGET_COMPATIBILITY));
 		}
 		project.getTasks().withType(JavaCompile.class, (compile) -> {
 			compile.getOptions().setEncoding("UTF-8");
+			compile.getOptions().getRelease().set(17);
 			List<String> args = compile.getOptions().getCompilerArgs();
 			if (!args.contains("-parameters")) {
 				args.add("-parameters");
 			}
-			if (project.hasProperty("toolchainVersion")) {
-				compile.setSourceCompatibility(SOURCE_AND_TARGET_COMPATIBILITY);
-				compile.setTargetCompatibility(SOURCE_AND_TARGET_COMPATIBILITY);
-			}
-			else if (buildingWithJava17(project)) {
-				args.addAll(Arrays.asList("-Werror", "-Xlint:unchecked", "-Xlint:deprecation", "-Xlint:rawtypes",
-						"-Xlint:varargs"));
-			}
+			args.addAll(Arrays.asList("-Werror", "-Xlint:unchecked", "-Xlint:deprecation", "-Xlint:rawtypes",
+					"-Xlint:varargs"));
 		});
-	}
-
-	private boolean buildingWithJava17(Project project) {
-		return !project.hasProperty("toolchainVersion") && JavaVersion.current() == JavaVersion.VERSION_17;
 	}
 
 	private void configureSpringJavaFormat(Project project) {
@@ -246,7 +255,7 @@ class JavaConventions {
 		project.getPlugins().apply(CheckstylePlugin.class);
 		CheckstyleExtension checkstyle = project.getExtensions().getByType(CheckstyleExtension.class);
 		checkstyle.setToolVersion("10.12.4");
-		checkstyle.getConfigDirectory().set(project.getRootProject().file("src/checkstyle"));
+		checkstyle.getConfigDirectory().set(project.getRootProject().file("config/checkstyle"));
 		String version = SpringJavaFormatPlugin.class.getPackage().getImplementationVersion();
 		DependencySet checkstyleDependencies = project.getConfigurations().getByName("checkstyle").getDependencies();
 		checkstyleDependencies
@@ -269,7 +278,7 @@ class JavaConventions {
 			.all((configuration) -> configuration.extendsFrom(dependencyManagement));
 		Dependency springBootParent = project.getDependencies()
 			.enforcedPlatform(project.getDependencies()
-				.project(Collections.singletonMap("path", ":spring-boot-project:spring-boot-parent")));
+				.project(Collections.singletonMap("path", ":platform:spring-boot-internal-dependencies")));
 		dependencyManagement.getDependencies().add(springBootParent);
 		project.getPlugins()
 			.withType(OptionalDependenciesPlugin.class,
@@ -302,6 +311,28 @@ class JavaConventions {
 			.register("check" + StringUtils.capitalize(classpath.getName() + "ForProhibitedDependencies"),
 					CheckClasspathForProhibitedDependencies.class, (task) -> task.setClasspath(classpath));
 		project.getTasks().getByName(JavaBasePlugin.CHECK_TASK_NAME).dependsOn(checkClasspathForProhibitedDependencies);
+	}
+
+	private void configureFactoriesFilesChecks(Project project) {
+		SourceSetContainer sourceSets = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
+		sourceSets.matching((sourceSet) -> SourceSet.MAIN_SOURCE_SET_NAME.equals(sourceSet.getName()))
+			.configureEach((main) -> {
+				TaskProvider<Task> check = project.getTasks().named(JavaBasePlugin.CHECK_TASK_NAME);
+				TaskProvider<CheckAotFactories> checkAotFactories = project.getTasks()
+					.register("checkAotFactories", CheckAotFactories.class, (task) -> {
+						task.setSource(main.getResources());
+						task.setClasspath(main.getOutput().getClassesDirs());
+						task.setDescription("Checks the META-INF/spring/aot.factories file of the main source set.");
+					});
+				check.configure((task) -> task.dependsOn(checkAotFactories));
+				TaskProvider<CheckSpringFactories> checkSpringFactories = project.getTasks()
+					.register("checkSpringFactories", CheckSpringFactories.class, (task) -> {
+						task.setSource(main.getResources());
+						task.setClasspath(main.getOutput().getClassesDirs());
+						task.setDescription("Checks the META-INF/spring.factories file of the main source set.");
+					});
+				check.configure((task) -> task.dependsOn(checkSpringFactories));
+			});
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,16 @@ public enum UpgradePolicy implements BiPredicate<DependencyVersion, DependencyVe
 	@Override
 	public boolean test(DependencyVersion candidate, DependencyVersion current) {
 		return this.delegate.test(candidate, current);
+	}
+
+	public static UpgradePolicy max(UpgradePolicy one, UpgradePolicy two) {
+		if (one == null && two != null) {
+			return two;
+		}
+		else if (one != null && two == null) {
+			return one;
+		}
+		return (one.ordinal() < two.ordinal()) ? one : two;
 	}
 
 }

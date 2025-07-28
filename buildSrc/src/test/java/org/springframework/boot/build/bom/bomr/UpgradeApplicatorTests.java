@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ class UpgradeApplicatorTests {
 		File gradleProperties = new File(this.temp, "gradle.properties");
 		FileCopyUtils.copy(new File("src/test/resources/gradle.properties"), gradleProperties);
 		Library activeMq = new Library("ActiveMQ", null, new LibraryVersion(DependencyVersion.parse("5.15.11")), null,
-				null, false, null, null, null, Collections.emptyMap());
+				null, null, false, null, null, null, Collections.emptyMap());
 		new UpgradeApplicator(bom.toPath(), gradleProperties.toPath())
 			.apply(new Upgrade(activeMq, activeMq.withVersion(new LibraryVersion(DependencyVersion.parse("5.16")))));
 		String bomContents = Files.readString(bom.toPath());
@@ -67,7 +67,7 @@ class UpgradeApplicatorTests {
 		File gradleProperties = new File(this.temp, "gradle.properties");
 		FileCopyUtils.copy(new File("src/test/resources/gradle.properties"), gradleProperties);
 		Library kotlin = new Library("Kotlin", null, new LibraryVersion(DependencyVersion.parse("1.3.70")), null, null,
-				false, null, null, null, Collections.emptyMap());
+				null, false, null, null, null, Collections.emptyMap());
 		new UpgradeApplicator(bom.toPath(), gradleProperties.toPath())
 			.apply(new Upgrade(kotlin, kotlin.withVersion(new LibraryVersion(DependencyVersion.parse("1.4")))));
 		Properties properties = new Properties();

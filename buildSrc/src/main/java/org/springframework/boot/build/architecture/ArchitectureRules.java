@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import com.tngtech.archunit.core.domain.JavaCall;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClass.Predicates;
 import com.tngtech.archunit.core.domain.JavaMethod;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.domain.JavaParameter;
 import com.tngtech.archunit.core.domain.JavaType;
 import com.tngtech.archunit.core.domain.properties.CanBeAnnotated;
@@ -63,6 +64,7 @@ import org.springframework.util.ResourceUtils;
  * @author Scott Frederick
  * @author Ivan Malutin
  * @author Phillip Webb
+ * @author Ngoc Nhan
  */
 final class ArchitectureRules {
 
@@ -94,6 +96,8 @@ final class ArchitectureRules {
 		rules.add(enumSourceShouldNotSpecifyOnlyATypeThatIsTheSameAsMethodParameterType());
 		rules.add(classLevelConfigurationPropertiesShouldNotSpecifyOnlyPrefixAttribute());
 		rules.add(methodLevelConfigurationPropertiesShouldNotSpecifyOnlyPrefixAttribute());
+		rules.add(conditionsShouldNotBePublic());
+		rules.add(allConfigurationPropertiesBindingBeanMethodsShouldBeStatic());
 		return List.copyOf(rules);
 	}
 
@@ -134,8 +138,11 @@ final class ArchitectureRules {
 
 	private static DescribedPredicate<JavaClass> notAnnotatedWithRoleInfrastructure() {
 		return is("not annotated with @Role(BeanDefinition.ROLE_INFRASTRUCTURE", (candidate) -> {
+			if (!candidate.isAnnotatedWith(Role.class)) {
+				return true;
+			}
 			Role role = candidate.getAnnotationOfType(Role.class);
-			return (role == null) || (role.value() != BeanDefinition.ROLE_INFRASTRUCTURE);
+			return role.value() != BeanDefinition.ROLE_INFRASTRUCTURE;
 		});
 	}
 
@@ -288,6 +295,28 @@ final class ArchitectureRules {
 			addViolation(events, item, configurationPropertiesAnnotation.getDescription()
 					+ " should specify implicit 'value' attribute other than explicit 'prefix' attribute");
 		}
+	}
+
+	private static ArchRule conditionsShouldNotBePublic() {
+		String springBootCondition = "org.springframework.boot.autoconfigure.condition.SpringBootCondition";
+		return ArchRuleDefinition.noClasses()
+			.that()
+			.areAssignableTo(springBootCondition)
+			.and()
+			.doNotHaveModifier(JavaModifier.ABSTRACT)
+			.and()
+			.areNotAnnotatedWith(Deprecated.class)
+			.should()
+			.bePublic()
+			.allowEmptyShould(true);
+	}
+
+	private static ArchRule allConfigurationPropertiesBindingBeanMethodsShouldBeStatic() {
+		return methodsThatAreAnnotatedWith("org.springframework.context.annotation.Bean").and()
+			.areAnnotatedWith("org.springframework.boot.context.properties.ConfigurationPropertiesBinding")
+			.should()
+			.beStatic()
+			.allowEmptyShould(true);
 	}
 
 	private static boolean containsOnlySingleType(JavaType[] types, JavaType type) {

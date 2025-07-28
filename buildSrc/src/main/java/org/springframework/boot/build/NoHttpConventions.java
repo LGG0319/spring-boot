@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,11 +34,11 @@ public class NoHttpConventions {
 		configureNoHttpExtension(project, project.getExtensions().getByType(NoHttpExtension.class));
 		project.getTasks()
 			.named(NoHttpCheckstylePlugin.CHECKSTYLE_NOHTTP_TASK_NAME, Checkstyle.class)
-			.configure((task) -> task.getConfigDirectory().set(project.getRootProject().file("src/nohttp")));
+			.configure((task) -> task.getConfigDirectory().set(project.getRootProject().file("config/nohttp")));
 	}
 
 	private void configureNoHttpExtension(Project project, NoHttpExtension extension) {
-		extension.setAllowlistFile(project.getRootProject().file("src/nohttp/allowlist.lines"));
+		extension.setAllowlistFile(project.getRootProject().file("config/nohttp/allowlist.lines"));
 		ConfigurableFileTree source = extension.getSource();
 		source.exclude("bin/**");
 		source.exclude("build/**");

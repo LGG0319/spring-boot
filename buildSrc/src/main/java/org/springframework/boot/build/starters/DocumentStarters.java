@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -121,7 +121,7 @@ public abstract class DocumentStarters extends DefaultTask {
 	}
 
 	private String addStarterCrossLinks(String input) {
-		return input.replaceAll("(spring-boot-starter[A-Za-z-]*)", "xref:#$1[`$1`]");
+		return input.replaceAll("(spring-boot-starter[A-Za-z0-9-]*)", "xref:#$1[`$1`]");
 	}
 
 	private static final class Starter implements Comparable<Starter> {

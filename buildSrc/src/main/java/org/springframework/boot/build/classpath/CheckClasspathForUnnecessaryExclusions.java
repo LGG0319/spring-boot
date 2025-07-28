@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ import org.gradle.api.tasks.TaskAction;
 public abstract class CheckClasspathForUnnecessaryExclusions extends DefaultTask {
 
 	private static final Map<String, String> SPRING_BOOT_DEPENDENCIES_PROJECT = Collections.singletonMap("path",
-			":spring-boot-project:spring-boot-dependencies");
+			":platform:spring-boot-dependencies");
 
 	private final Map<String, Set<String>> exclusionsByDependencyId = new TreeMap<>();
 

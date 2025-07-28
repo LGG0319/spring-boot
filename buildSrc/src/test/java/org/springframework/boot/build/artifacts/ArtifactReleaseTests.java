@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,17 +66,19 @@ class ArtifactReleaseTests {
 	}
 
 	@Test
-	void whenProjectVersionIsMilestoneThenRepositoryIsArtifactoryMilestone() {
+	void whenProjectVersionIsMilestoneThenRepositoryIsMavenCentral() {
 		Project project = ProjectBuilder.builder().build();
-		project.setVersion("1.2.3-M1");
-		assertThat(ArtifactRelease.forProject(project).getDownloadRepo()).contains("repo.spring.io/milestone");
+		project.setVersion("4.0.0-M1");
+		assertThat(ArtifactRelease.forProject(project).getDownloadRepo())
+			.contains("https://repo.maven.apache.org/maven2");
 	}
 
 	@Test
-	void whenProjectVersionIsReleaseCandidateThenRepositoryIsArtifactoryMilestone() {
+	void whenProjectVersionIsReleaseCandidateThenRepositoryIsMavenCentral() {
 		Project project = ProjectBuilder.builder().build();
-		project.setVersion("1.2.3-RC1");
-		assertThat(ArtifactRelease.forProject(project).getDownloadRepo()).contains("repo.spring.io/milestone");
+		project.setVersion("4.0.0-RC1");
+		assertThat(ArtifactRelease.forProject(project).getDownloadRepo())
+			.contains("https://repo.maven.apache.org/maven2");
 	}
 
 	@Test

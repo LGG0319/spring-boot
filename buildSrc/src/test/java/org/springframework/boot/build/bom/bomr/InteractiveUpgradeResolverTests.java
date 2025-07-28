@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2024 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class InteractiveUpgradeResolverTests {
 		List<Library> libraries = new ArrayList<>();
 		DependencyVersion version = DependencyVersion.parse("1.0.0");
 		LibraryVersion libraryVersion = new LibraryVersion(version);
-		Library library = new Library("test", null, libraryVersion, null, null, false, null, null, null, null);
+		Library library = new Library("test", null, libraryVersion, null, null, null, false, null, null, null, null);
 		libraries.add(library);
 		List<Library> librariesToUpgrade = new ArrayList<>();
 		librariesToUpgrade.add(library);

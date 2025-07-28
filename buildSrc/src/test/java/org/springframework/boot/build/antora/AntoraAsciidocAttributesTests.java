@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,7 +134,7 @@ class AntoraAsciidocAttributesTests {
 	void urlArtifactRepositoryWhenMilestone() {
 		AntoraAsciidocAttributes attributes = new AntoraAsciidocAttributes("1.2.3-M1", true, BuildType.OPEN_SOURCE,
 				null, mockDependencyVersions(), null);
-		assertThat(attributes.get()).containsEntry("url-artifact-repository", "https://repo.spring.io/milestone");
+		assertThat(attributes.get()).containsEntry("url-artifact-repository", "https://repo.maven.apache.org/maven2");
 	}
 
 	@Test
@@ -237,7 +237,7 @@ class AntoraAsciidocAttributesTests {
 		VersionAlignment versionAlignment = null;
 		String alignsWithBom = null;
 		String linkRootName = null;
-		Library library = new Library(name, calendarName, version, groups, prohibitedVersion, considerSnapshots,
+		Library library = new Library(name, calendarName, version, groups, null, prohibitedVersion, considerSnapshots,
 				versionAlignment, alignsWithBom, linkRootName, links);
 		return library;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,10 @@ import org.gradle.api.Project;
 import org.springframework.boot.build.artifacts.ArtifactRelease;
 import org.springframework.boot.build.bom.BomExtension;
 import org.springframework.boot.build.bom.Library;
+import org.springframework.boot.build.bom.ResolvedBom;
+import org.springframework.boot.build.bom.ResolvedBom.Bom;
+import org.springframework.boot.build.bom.ResolvedBom.Id;
+import org.springframework.boot.build.bom.ResolvedBom.ResolvedLibrary;
 import org.springframework.boot.build.properties.BuildProperties;
 import org.springframework.boot.build.properties.BuildType;
 import org.springframework.util.Assert;
@@ -59,15 +65,46 @@ public class AntoraAsciidocAttributes {
 
 	private final Map<String, ?> projectProperties;
 
-	public AntoraAsciidocAttributes(Project project, BomExtension dependencyBom,
-			Map<String, String> dependencyVersions) {
+	public AntoraAsciidocAttributes(Project project, BomExtension dependencyBom, ResolvedBom resolvedBom) {
 		this.version = String.valueOf(project.getVersion());
 		this.latestVersion = Boolean.parseBoolean(String.valueOf(project.findProperty("latestVersion")));
 		this.buildType = BuildProperties.get(project).buildType();
 		this.artifactRelease = ArtifactRelease.forProject(project);
 		this.libraries = dependencyBom.getLibraries();
-		this.dependencyVersions = dependencyVersions;
+		this.dependencyVersions = dependencyVersionsOf(resolvedBom);
 		this.projectProperties = project.getProperties();
+	}
+
+	private static Map<String, String> dependencyVersionsOf(ResolvedBom resolvedBom) {
+		Map<String, String> dependencyVersions = new HashMap<>();
+		for (ResolvedLibrary library : resolvedBom.libraries()) {
+			dependencyVersions.putAll(dependencyVersionsOf(library.managedDependencies()));
+			for (Bom importedBom : library.importedBoms()) {
+				dependencyVersions.putAll(dependencyVersionsOf(importedBom));
+			}
+		}
+		return dependencyVersions;
+	}
+
+	private static Map<String, String> dependencyVersionsOf(Bom bom) {
+		Map<String, String> dependencyVersions = new HashMap<>();
+		if (bom != null) {
+			dependencyVersions.putAll(dependencyVersionsOf(bom.managedDependencies()));
+			dependencyVersions.putAll(dependencyVersionsOf(bom.parent()));
+			for (Bom importedBom : bom.importedBoms()) {
+				dependencyVersions.putAll(dependencyVersionsOf(importedBom));
+			}
+		}
+		return dependencyVersions;
+	}
+
+	private static Map<String, String> dependencyVersionsOf(Collection<Id> managedDependencies) {
+		Map<String, String> dependencyVersions = new HashMap<>();
+		for (Id managedDependency : managedDependencies) {
+			dependencyVersions.put(managedDependency.groupId() + ":" + managedDependency.artifactId(),
+					managedDependency.version());
+		}
+		return dependencyVersions;
 	}
 
 	AntoraAsciidocAttributes(String version, boolean latestVersion, BuildType buildType, List<Library> libraries,
@@ -141,26 +178,6 @@ public class AntoraAsciidocAttributes {
 		addSpringDataDependencyVersion(attributes, internal, "spring-data-redis");
 		addSpringDataDependencyVersion(attributes, internal, "spring-data-rest", "spring-data-rest-core");
 		addSpringDataDependencyVersion(attributes, internal, "spring-data-ldap");
-		addTestcontainersDependencyVersion(attributes, internal, "activemq");
-		addTestcontainersDependencyVersion(attributes, internal, "cassandra");
-		addTestcontainersDependencyVersion(attributes, internal, "clickhouse");
-		addTestcontainersDependencyVersion(attributes, internal, "couchbase");
-		addTestcontainersDependencyVersion(attributes, internal, "elasticsearch");
-		addTestcontainersDependencyVersion(attributes, internal, "grafana");
-		addTestcontainersDependencyVersion(attributes, internal, "jdbc");
-		addTestcontainersDependencyVersion(attributes, internal, "kafka");
-		addTestcontainersDependencyVersion(attributes, internal, "mariadb");
-		addTestcontainersDependencyVersion(attributes, internal, "mongodb");
-		addTestcontainersDependencyVersion(attributes, internal, "mssqlserver");
-		addTestcontainersDependencyVersion(attributes, internal, "mysql");
-		addTestcontainersDependencyVersion(attributes, internal, "neo4j");
-		addTestcontainersDependencyVersion(attributes, internal, "oracle-xe");
-		addTestcontainersDependencyVersion(attributes, internal, "oracle-free");
-		addTestcontainersDependencyVersion(attributes, internal, "postgresql");
-		addTestcontainersDependencyVersion(attributes, internal, "pulsar");
-		addTestcontainersDependencyVersion(attributes, internal, "rabbitmq");
-		addTestcontainersDependencyVersion(attributes, internal, "redpanda");
-		addTestcontainersDependencyVersion(attributes, internal, "r2dbc");
 		addDependencyVersion(attributes, "pulsar-client-reactive-api", "org.apache.pulsar:pulsar-client-reactive-api");
 		addDependencyVersion(attributes, "pulsar-client-api", "org.apache.pulsar:pulsar-client-api");
 	}
@@ -179,11 +196,6 @@ public class AntoraAsciidocAttributes {
 		String antoraVersion = version.endsWith(DASH_SNAPSHOT) ? majorMinor + DASH_SNAPSHOT : majorMinor;
 		internal.put("antoraversion-" + name, antoraVersion);
 		internal.put("dotxversion-" + name, majorMinor + ".x");
-	}
-
-	private void addTestcontainersDependencyVersion(Map<String, String> attributes, Map<String, String> internal,
-			String artifactId) {
-		addDependencyVersion(attributes, "testcontainers-" + artifactId, "org.testcontainers:" + artifactId);
 	}
 
 	private void addDependencyVersion(Map<String, String> attributes, String name, String groupAndArtifactId) {
@@ -205,19 +217,13 @@ public class AntoraAsciidocAttributes {
 
 	private void addUrlJava(Map<String, String> attributes) {
 		attributes.put("url-javase-javadoc", "https://docs.oracle.com/en/java/javase/17/docs/api");
+		attributes.put("javadoc-location-java", "{url-javase-javadoc}/java.base");
 		attributes.put("javadoc-location-java-beans", "{url-javase-javadoc}/java.desktop");
-		attributes.put("javadoc-location-java-lang", "{url-javase-javadoc}/java.base");
-		attributes.put("javadoc-location-java-net", "{url-javase-javadoc}/java.base");
-		attributes.put("javadoc-location-java-io", "{url-javase-javadoc}/java.base");
-		attributes.put("javadoc-location-java-nio", "{url-javase-javadoc}/java.base");
-		attributes.put("javadoc-location-java-security", "{url-javase-javadoc}/java.base");
 		attributes.put("javadoc-location-java-sql", "{url-javase-javadoc}/java.sql");
-		attributes.put("javadoc-location-java-time", "{url-javase-javadoc}/java.base");
-		attributes.put("javadoc-location-java-util", "{url-javase-javadoc}/java.base");
+		attributes.put("javadoc-location-javax", "{url-javase-javadoc}/java.base");
 		attributes.put("javadoc-location-javax-management", "{url-javase-javadoc}/java.management");
 		attributes.put("javadoc-location-javax-net", "{url-javase-javadoc}/java.base");
 		attributes.put("javadoc-location-javax-sql", "{url-javase-javadoc}/java.sql");
-		attributes.put("javadoc-location-javax-security", "{url-javase-javadoc}/java.base");
 		attributes.put("javadoc-location-javax-xml", "{url-javase-javadoc}/java.xml");
 	}
 
